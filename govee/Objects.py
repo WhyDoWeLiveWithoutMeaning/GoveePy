@@ -1,5 +1,3 @@
-
-
 class Color:
     r: int
     g: int

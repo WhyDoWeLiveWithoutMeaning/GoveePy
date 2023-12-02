@@ -5,6 +5,8 @@ import time
 
 from .Objects import Color
 
+_LOG = logging.getLogger(__name__)
+
 _MULTICAST_GROUP = '239.255.255.250'
 _MULTICAST_PORT = 4001
 _RESPONSE_IP = '0.0.0.0'
@@ -12,6 +14,12 @@ _RESPONSE_PORT = 4002
 _DEVICE_PORT = 4003
 
 class GoveeDeviceLocal:
+    """Govee Device Local
+    
+    This represents a Govee Device from the Local API
+    
+    This is different from the Govee API because of minor differences
+    such as it does not have a Name, so you will need to find the light by IP"""
 
     _ip: str
     _device: str
@@ -28,7 +36,7 @@ class GoveeDeviceLocal:
         self._model = model
 
     def _listen_for_response(self) -> dict:
-        logging.info("Listening for response")
+        _LOG.info("Listening for response")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(0)
         sock.bind((_RESPONSE_IP, _RESPONSE_PORT))
@@ -38,10 +46,10 @@ class GoveeDeviceLocal:
                 recieved.decode("utf-8")
                 try:
                     data = json.loads(recieved)
-                    logging.info("Response from %s, %s",resp_addr, data)
+                    _LOG.info("Response from %s, %s",resp_addr, data)
                     return data
                 except json.JSONDecodeError as e:
-                    logging.error("Error decoding JSON: %s", e)
+                    _LOG.error("Error decoding JSON: %s", e)
             except socket.error:
                 pass
 
@@ -55,9 +63,9 @@ class GoveeDeviceLocal:
 
         try:
             r_sock.sendto(message, (self._ip, _DEVICE_PORT))
-            logging.info("Request sent to %s:%s, %s", self._ip, _DEVICE_PORT, command)
+            _LOG.info("Request sent to %s:%s, %s", self._ip, _DEVICE_PORT, command)
         except Exception:
-            logging.error("Request Failed")
+            _LOG.error("Request Failed")
         finally:
             r_sock.close()
             if listen:
@@ -65,6 +73,7 @@ class GoveeDeviceLocal:
         return data
 
     def turn_on(self):
+        """Turn on the light"""
         self._send_request(
             {
                 "cmd" : "turn",
@@ -76,6 +85,7 @@ class GoveeDeviceLocal:
         self._state = True
 
     def turn_off(self):
+        """Turn off the light"""
         self._send_request(
             {
                 "cmd" : "turn",
@@ -96,6 +106,10 @@ class GoveeDeviceLocal:
         self._brightness = brightness % 101
 
     def set_color(self, r: int, g: int, b: int, temp: int = 0):
+        """Set Color
+
+        Change the color of the light!
+        """
         self._send_request({
             "cmd": "colorwc",
             "data": {
@@ -122,22 +136,27 @@ class GoveeDeviceLocal:
         self._color_tem = response.get("ColorTemInKelvin", 0)
 
     def update(self):
+        """Update the Object with the current state of the Device"""
         self._update_device_state()
 
     @property
     def on(self):
+        """Whether the light is on"""
         return self._state
-    
+
     @property
     def off(self):
+        """Whether the light is off"""
         return not self._state
 
     @property
     def ip(self):
+        """IP Address of the Device"""
         return self._ip
-    
+
     @property
     def device(self):
+        """"""
         return self._device
     
     @property
@@ -181,9 +200,9 @@ class GoveeLocal:
         }).encode('utf-8')
         try:
             send_socket.sendto(request_message, (_MULTICAST_GROUP, _MULTICAST_PORT))
-            logging.info("Request sent to %s:%s", _MULTICAST_GROUP, _MULTICAST_PORT)
+            _LOG.info("Request sent to %s:%s", _MULTICAST_GROUP, _MULTICAST_PORT)
         except socket.error as e:
-            logging.error("Error Sending Request to %s:%s | %s", _MULTICAST_GROUP, _MULTICAST_PORT, e)
+            _LOG.error("Error Sending Request to %s:%s | %s", _MULTICAST_GROUP, _MULTICAST_PORT, e)
         finally:
             send_socket.close()
         self._start_udp_server()
@@ -199,7 +218,7 @@ class GoveeLocal:
         # Bind the socket to the server address and port
         server_socket.bind((_RESPONSE_IP, _RESPONSE_PORT))
 
-        logging.info("UDP server listening on %s:%s", _RESPONSE_IP, _RESPONSE_PORT)
+        _LOG.info("UDP server listening on %s:%s", _RESPONSE_IP, _RESPONSE_PORT)
 
         start_time = time.time()
 
@@ -212,10 +231,10 @@ class GoveeLocal:
                 decoded_data = data.decode('utf-8')
                 try:
                     json_data = json.loads(decoded_data)
-                    logging.info("Recieved Data: %s", json_data)
+                    _LOG.info("Recieved Data: %s", json_data)
                     self._handle_response(json_data, address)
                 except json.JSONDecodeError as e:
-                    logging.error("Error decoding JSON: %s", e)
+                    _LOG.error("Error decoding JSON: %s", e)
 
             except socket.error:
                 # Handle socket error (e.g., no data available)
@@ -223,9 +242,9 @@ class GoveeLocal:
 
             # Check if the timeout has been reached
             if time.time() - start_time > self._timeout:
-                logging.info("Timeout reached. Stopping UDP server.")
+                _LOG.info("Timeout reached. Stopping UDP server.")
                 break
-        logging.info("Socket Closed()")
+        _LOG.info("Socket Closed()")
         # Close the receiving socket when done
         server_socket.close()
         for device in self._devices:
@@ -238,7 +257,7 @@ class GoveeLocal:
             response_data["msg"]["data"]["device"],
             response_data["msg"]["data"]["sku"]
         ))
-        logging.info("Received response from %s: %s", sender_address, response_data)
+        _LOG.info("Received response from %s: %s", sender_address, response_data)
 
     @property
     def devices(self):

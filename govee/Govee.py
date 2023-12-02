@@ -1,79 +1,127 @@
 import requests
 from abc import abstractmethod
-from enum import Enum
 from typing import List
+
+from .Objects import Color
 
 BASE_URL = "https://developer-api.govee.com"
 
-class Command(Enum):
-    TURN = 'turn'
-    BRIGHTNESS = 'brightness'
-    COLOR = 'color'
-    COLORTEM = 'colortem'
-
 class GoveeDevice:
-
+    """Govee Device
+    
+    Base Object
+    """
     _model: str
     _device: str
     _name: str
 
+    _controllable: bool
+    _retrievable: bool
+
     _key: str
 
-    _on: bool = None
+    _state: bool = None
 
-    def __init__(self, model: str = "", device: str = "", name: str = "", key: str = ""):
+    def __init__(self,
+                 model: str = "",
+                 device: str = "",
+                 name: str = "", 
+                 controllable: bool = False,
+                 retrievable: bool = False,
+                 key: str = ""):
         self._model = model
         self._device = device
         self._name = name
+
+        self._controllable = controllable
+        self._retrievable = retrievable
+
         self._key = key
+
+        self._update()
 
     def _make_request(self, method: str, url: str, *args, **kwargs) -> requests.Response:
         if not kwargs.get("headers", None):
             kwargs["headers"] = {
                 "Govee-API-Key": self._key
             }
-        response = requests.request(method, url, *args, **kwargs)
+        response = requests.request(method, url, *args, **kwargs, timeout=60)
         return response.json()
 
     @abstractmethod
     def _command(self, command):
         pass
 
+    @abstractmethod
+    def _update(self):
+        pass
+
+    @property
+    def model(self):
+        """Device Model"""
+        return self._model
+
+    @property
+    def device(self):
+        """Device ID"""
+        return self._device
+
     @property
     def name(self):
         return self._name
 
     @property
+    def controllable(self):
+        return self._controllable
+
+    @property
+    def retrievable(self):
+        return self._retrievable
+
+    @property
     def on(self):
-        return self._on
-    
+        """Whether the light is on"""
+        return self._state
+
     @property
     def off(self):
-        return not self._on
-
-    @abstractmethod
-    def _update(self):
-        pass
+        """Whether the light is off"""
+        return not self._state
 
     def turn_on(self):
+        """Turn the light on"""
         self._command(
             {
                 "name": "turn",
                 "value": "on"
             }
         )
+        self._state = True
 
     def turn_off(self):
+        """Turn the light off"""
         self._command(
             {
                 "name": "turn",
                 "value": "off"
             }
         )
+        self._state = False
+
+    def __str__(self):
+        return f"<{self.name} [device = {self.device}, model = {self.model}]>"
+
+    def __repr__(self):
+        return f"<{self.name} [device = {self.device}, model = {self.model}]>"
 
 
 
 class GoveeLight(GoveeDevice):
+    """Govee Light"""
+
+    _online: bool = True
+    _brightness: int = 0
+    _color: Color = Color(0,0,0)
 
     def _command(self, command):
         self._make_request(
@@ -86,7 +134,7 @@ class GoveeLight(GoveeDevice):
             }
         )
 
-    def update(self):
+    def _update(self):
         response = self._make_request(
             "GET",
             f"{BASE_URL}/v1/devices/state",
@@ -95,7 +143,13 @@ class GoveeLight(GoveeDevice):
                 "model": self._model
             }
         )
-        self._on = update
+        data = {}
+        for i in response["data"]["properties"]:
+            for k, v in i.items():
+                data[k] = v
+        self._state = data.get("powerState") == 'on'
+        self._brightness = data.get("brightness", 0)
+        self._color = Color(**data.get("color", {"r":0,"g":0,"b":0}))
 
 class GoveeAppliance(GoveeDevice):
 
@@ -110,11 +164,15 @@ class GoveeAppliance(GoveeDevice):
             }
         )
 
+    def _update(self):
+        # No current API Implementation
+        pass
+
 
 class Govee:
 
     _key: str
-    _devices: List[GoveeDevice] = None
+    _devices: List[GoveeDevice] = []
     _device_rate_limits: List
 
     def __init__(self, key: str):
@@ -125,36 +183,43 @@ class Govee:
             kwargs["headers"] = {
                 "Govee-API-Key": self._key
             }
-        response = requests.request(method, url, *args, **kwargs)
+        response = requests.request(method, url, *args, **kwargs, timeout=60)
         if response.status_code == 200:
             return response.json()
-        else:
-            raise 
 
     def get_devices(self, *, update: bool = False):
-        if not self._devices or update:
-            response = self._make_request(
+        if len(self._devices) == 0 or update:
+            data = self._make_request(
                 "GET",
                 f"{BASE_URL}/v1/devices"
             )
-
-        else:
-            return self._devices
+            for device in data["data"]["devices"]:
+                self._devices.append(
+                    GoveeLight(
+                        device["model"],
+                        device["device"],
+                        device["deviceName"],
+                        device["controllable"],
+                        device["retrievable"],
+                        self._key
+                    )
+                )
+        return self._devices
         
-    def get_device_by_name(self, name: str) -> GoveeDevice:
+    def get_device_by_name(self, name: str) -> GoveeDevice | None:
         for device in self._devices:
-            if device.name is name:
+            if device.name == name:
                 return device
         return None
     
-    def get_device_by_model(self, model: str) -> GoveeDevice:
+    def get_device_by_model(self, model: str) -> GoveeDevice | None:
         for device in self._devices:
-            if device._model is model:
+            if device.model == model:
                 return device
         return None
     
-    def get_device_by_address(self, address: str) -> GoveeDevice:
+    def get_device_by_address(self, address: str) -> GoveeDevice | None:
         for device in self._devices:
-            if device._device is address:
+            if device.device == address:
                 return device
         return None
