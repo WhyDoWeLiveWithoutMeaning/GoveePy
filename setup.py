@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
   name='GoveePy',
-  version='0.1',
+  version='0.2',
   description='A Govee API Wrapper for Python',
   url='https://github.com/WhyDoWeLiveWithoutMeaning/GoveePy',
   author="Meaning",
@@ -17,5 +17,6 @@ setup(
     'License :: OSI Approved :: MIT License',  
     'Operating System :: WINDOWS',
     'Programming Language :: Python :: 3.12',
+    'Typing :: Typed'
   ]
 )

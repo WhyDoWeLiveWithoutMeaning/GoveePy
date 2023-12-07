@@ -1,2 +1,2 @@
-from .Govee import Govee
-from .GoveeLocal import GoveeLocal
+from .Govee import *
+from .GoveeLocal import *

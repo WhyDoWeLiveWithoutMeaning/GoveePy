@@ -25,7 +25,7 @@ class GoveeDevice:
     def __init__(self,
                  model: str = "",
                  device: str = "",
-                 name: str = "", 
+                 name: str = "",
                  controllable: bool = False,
                  retrievable: bool = False,
                  key: str = ""):
@@ -68,14 +68,17 @@ class GoveeDevice:
 
     @property
     def name(self):
+        """The Devices Name"""
         return self._name
 
     @property
     def controllable(self):
+        """Whether the device is controllable"""
         return self._controllable
 
     @property
     def retrievable(self):
+        """Whether the device is retrievable"""
         return self._retrievable
 
     @property
@@ -150,6 +153,26 @@ class GoveeLight(GoveeDevice):
         self._state = data.get("powerState") == 'on'
         self._brightness = data.get("brightness", 0)
         self._color = Color(**data.get("color", {"r":0,"g":0,"b":0}))
+
+    def set_brightness(self, brightness: int):
+        """Set the brightness of the light (1-100)"""
+        self._command({
+            "name": "brightness",
+            "value": brightness % 101
+        })
+        self._brightness = brightness % 101
+
+    def set_color(self, r: int, g: int, b: int):
+        """Set the color of the light"""
+        self._command({
+            "name": "color",
+            "value": {
+                "r": r % 256,
+                "g": g % 256,
+                "b": b % 256
+            }
+        })
+        self._color = Color(r%256,g%256,b%256)
 
 class GoveeAppliance(GoveeDevice):
 
