@@ -1,4 +1,5 @@
 # GoveePy
+[![Documentation Status](https://readthedocs.org/projects/goveepy/badge/?version=latest)](https://goveepy.readthedocs.io/en/latest/?badge=latest)
 
 GoveePy is a WIP Python wrapper for the Govee API.
 
