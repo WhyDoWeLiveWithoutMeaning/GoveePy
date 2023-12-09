@@ -17,6 +17,8 @@ Welcome to GoveePy's documentation!
    :caption: Contents:
 
    govee
+   goveelocal
+
 
 Indices and tables
 ==================

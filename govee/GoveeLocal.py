@@ -47,16 +47,14 @@ class _Listener:
                     _LOG.info("Timeout reached. Stopping UDP server.")
                     break
 
-
-
 class GoveeDeviceLocal(_Listener):
-    """Govee Device Local
-    
-    This represents a Govee Device from the Local API
-    
-    This is different from the Govee API because of minor differences
-    such as it does not have a Name, so you will need to find the light by IP"""
+    """
+    Class representing a Govee device
 
+    :param str ip: the IP address of the device.
+    :param str device: the unique device id.
+    :param str model: the model of the device.
+    """
     _ip: str
     _device: str
     _model: str
@@ -72,6 +70,12 @@ class GoveeDeviceLocal(_Listener):
         self._model = model
 
     def _send_request(self, command: dict, *, listen: bool = False) -> dict | None:
+        """
+        Sends a request to the device.
+
+        :param command: The command to send.
+        :param listen: Whether or not to listen for a response.
+        """
         data: dict | None = None
 
         r_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -91,7 +95,12 @@ class GoveeDeviceLocal(_Listener):
         return data
 
     def turn_on(self):
-        """Turn on the light"""
+        """
+        Turns the device on. 
+
+        :return: None
+        """
+
         self._send_request(
             {
                 "cmd" : "turn",
@@ -103,7 +112,12 @@ class GoveeDeviceLocal(_Listener):
         self._state = True
 
     def turn_off(self):
-        """Turn off the light"""
+        """
+        Turns the device off.    
+
+        :return: None
+        """
+
         self._send_request(
             {
                 "cmd" : "turn",
@@ -115,10 +129,13 @@ class GoveeDeviceLocal(_Listener):
         self._state = False
 
     def set_brightness(self, brightness: int):
-        """Set Brightness
-        
-        Value between 1-100
         """
+        Set the brightness of the device.
+
+        :param brightness: The brightness to set (1-100)
+        :return: None
+        """
+
         self._send_request({
             "cmd" : "brightness",
             "data": {
@@ -128,10 +145,16 @@ class GoveeDeviceLocal(_Listener):
         self._brightness = brightness % 101
 
     def set_color(self, r: int, g: int, b: int, temp: int = 0):
-        """Set Color
-
-        Change the color of the light!
         """
+        Set the color of the device.
+        
+        :param r: The red value (0-255)
+        :param g: The green value (0-255)
+        :param b: The blue value (0-255)
+        :param temp: The color temperature (0-100)
+        :return: None
+        """
+
         self._send_request({
             "cmd": "colorwc",
             "data": {
@@ -147,6 +170,9 @@ class GoveeDeviceLocal(_Listener):
         self._color_tem = temp
 
     def _update_device_state(self):
+        """
+        Updates the device state.
+        """
         response = self._send_request({
             "cmd": "devStatus",
             "data": {}
@@ -158,32 +184,54 @@ class GoveeDeviceLocal(_Listener):
         self._color_tem = response.get("ColorTemInKelvin", 0)
 
     def update(self):
-        """Update the Object with the current state of the Device"""
+        """
+        Updates the device state.
+        """
         self._update_device_state()
 
     @property
     def on(self):
-        """Whether the light is on"""
+        """
+        Returns whether or not the device is on.
+        
+        :return: bool
+        """
         return self._state
 
     @property
     def off(self):
-        """Whether the light is off"""
+        """
+        Returns whether or not the device is off.
+        
+        :return: bool
+        """
         return not self._state
 
     @property
     def ip(self):
-        """IP Address of the Device"""
+        """
+        Returns the IP address of the device.
+        
+        :return: str
+        """
         return self._ip
 
     @property
     def device(self):
-        """Get the device's ID"""
+        """
+        Returns the unique device id.
+        
+        :return: str
+        """
         return self._device
 
     @property
     def model(self):
-        """Get the device's Model"""
+        """
+        Returns the model of the device.
+        
+        :return: str
+        """
         return self._model
 
     def __str__(self):
@@ -193,26 +241,56 @@ class GoveeDeviceLocal(_Listener):
         return f"<LocalGoveeDevice || {self.ip = }|{self.device = }|{self.model = }>"
 
 class GoveeLocal(_Listener):
-
-    _devices: List[GoveeDeviceLocal] = []
+    """
+    Class representing a Govee device
+    
+    :param int timeout: The timeout for the scan request.
+    
+    :var devices: A list of devices found on the network.
+    
+    :return: None
+    """
 
     def __init__(self, *, timeout: int = 1):
         self._timeout = timeout
+        self.__devices = []
 
     def get_devices(self):
-        self._send_scan_request()
+        """
+        Sends a scan request to the network and returns a list of devices found.
+        
+        :return: List[GoveeDeviceLocal]
+        """
+        return self._send_scan_request()
 
     def get_device_by_device(self, device: str) -> GoveeDeviceLocal | None:
-        dev = list(filter(lambda x: x.device == device, self._devices))
+        """
+        Returns a device by its unique device id.
+
+        :param device: The unique device id.
+        
+        :return: GoveeDeviceLocal | None
+        """
+
+        dev = list(filter(lambda x: x.device == device, self.__devices))
         return dev[0] if len(dev) > 0 else None
     
     def get_device_by_ip(self, ip: str) -> GoveeDeviceLocal | None:
-        dev = list(filter(lambda x: x.ip == ip, self._devices))
+        """
+        Returns a device by its IP address.
+
+        :param ip: The IP address of the device.
+
+        :return: GoveeDeviceLocal | None
+        """
+        dev = list(filter(lambda x: x.ip == ip, self.__devices))
         return dev[0] if len(dev) > 0 else None
     
     def __handle_response(self, response_data, sender_address):
-        # Process the received response (customize as needed)
-        self._devices.append(GoveeDeviceLocal(
+        """
+        Handles a response from a device.
+        """
+        self.__devices.append(GoveeDeviceLocal(
             response_data["msg"]["data"]["ip"],
             response_data["msg"]["data"]["device"],
             response_data["msg"]["data"]["sku"]
@@ -220,6 +298,9 @@ class GoveeLocal(_Listener):
         _LOG.info("Received response from %s: %s", sender_address, response_data)
 
     def _send_scan_request(self):
+        """
+        Sends a scan request to the network.
+        """
         send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         request_message = json.dumps({
@@ -238,10 +319,15 @@ class GoveeLocal(_Listener):
         finally:
             send_socket.close()
         self._listen_for_response(_RESPONSE_IP, _RESPONSE_PORT, timeout=1, callback=self.__handle_response)
-        for device in self._devices:
+        for device in self.__devices:
             device.update()
-        return self._devices
+        return self.__devices
 
     @property
     def devices(self):
-        return self._devices
+        """
+        Returns a list of cached devices found on the network.
+        
+        :return: List[GoveeDeviceLocal]
+        """
+        return self.__devices

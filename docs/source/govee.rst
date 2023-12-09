@@ -1,17 +1,15 @@
-.. currentmodule:: Govee
-
-API Reference
-=============
-
-The following provides the Classes, Methods and Properties you can use.
-
-Clients
--------
-
 Govee
-~~~~~
+=====
 
-.. attributetable:: Govee
+These are the classes used when using the Govee API.
 
-.. autoclass:: Govee
-    :members:
+.. autoclass:: govee.Govee
+   :members:
+
+.. autoclass:: govee.GoveeLight
+   :members:
+   :inherited-members:
+
+.. autoclass:: govee.GoveeAppliance
+   :members:
+   :inherited-members:

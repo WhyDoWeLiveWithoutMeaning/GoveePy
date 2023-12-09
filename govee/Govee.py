@@ -7,9 +7,11 @@ from .Objects import Color
 BASE_URL = "https://developer-api.govee.com"
 
 class GoveeDevice:
-    """Govee Device
-    
-    Base Object
+    """
+    Class representing a Govee device
+
+    :param str device: the unique device id.
+    :param str model: the model of the device.
     """
     _model: str
     _device: str
@@ -120,7 +122,18 @@ class GoveeDevice:
 
 
 class GoveeLight(GoveeDevice):
-    """Govee Light"""
+    """
+    Class representing a Govee light.
+
+    You should not need to create this class, I recommend using :meth:`Govee.get_devices` to get a list of devices.
+    
+    :param str device: the unique device id.
+    :param str model: the model of the device.
+    :param str name: the name of the device.
+    :param bool controllable: whether the device is controllable.
+    :param bool retrievable: whether the device is retrievable.
+    :param str key: your API key for Govee.
+    """
 
     _online: bool = True
     _brightness: int = 0
@@ -175,12 +188,27 @@ class GoveeLight(GoveeDevice):
         self._color = Color(r%256,g%256,b%256)
 
 class GoveeAppliance(GoveeDevice):
+    """
+    Class representing a Govee appliance.
+    
+    Note:
+        There is currently no good API implementation for Govee appliances.
+    """
 
     def _command(self, command):
+        """
+        Sends a command to control the Govee appliance.
+
+        Args:
+            command (str): The command to send to the Govee appliance.
+
+        Returns:
+            None
+        """
         self._make_request(
             "PUT",
             f"{BASE_URL}/v1/appliance/devices/control",
-            json = {
+            json={
                 "device": self._device,
                 "model": self._model,
                 "cmd": command
@@ -188,18 +216,31 @@ class GoveeAppliance(GoveeDevice):
         )
 
     def _update(self):
-        # No current API Implementation
+        """
+        Updates the Govee appliance.
+
+        Note:
+            There is currently no API implementation for updating the Govee appliance.
+
+        Returns:
+            None
+        """
         pass
 
 
 class Govee:
+    """
+    Represents an instance connected to the Govee API.
 
+    :param str key: Your API Key for Govee.
+    """
     _key: str
-    _devices: List[GoveeDevice] = []
+    _devices: List[GoveeDevice]
     _device_rate_limits: List
 
     def __init__(self, key: str):
         self._key = key
+        self._devices = []
 
     def _make_request(self, method: str, url: str, *args, **kwargs):
         if not kwargs.get("headers", None):
@@ -211,6 +252,13 @@ class Govee:
             return response.json()
 
     def get_devices(self, *, update: bool = False):
+        """
+        Retrieves the list of devices associated with the Govee account.
+
+        :param bool update: If True, force an update of the device list.
+        :return: List of GoveeDevice objects.
+        :rtype: List[GoveeDevice]
+        """
         if len(self._devices) == 0 or update:
             data = self._make_request(
                 "GET",
@@ -230,18 +278,39 @@ class Govee:
         return self._devices
         
     def get_device_by_name(self, name: str) -> GoveeDevice | None:
+        """
+        Retrieves a device by its name.
+
+        :param str name: The name of the device.
+        :return: The GoveeDevice object if found, otherwise None.
+        :rtype: GoveeDevice | None
+        """
         for device in self._devices:
             if device.name == name:
                 return device
         return None
     
     def get_device_by_model(self, model: str) -> GoveeDevice | None:
+        """
+        Retrieves a device by its model.
+
+        :param str model: The model of the device.
+        :return: The GoveeDevice object if found, otherwise None.
+        :rtype: GoveeDevice | None
+        """
         for device in self._devices:
             if device.model == model:
                 return device
         return None
     
     def get_device_by_address(self, address: str) -> GoveeDevice | None:
+        """
+        Retrieves a device by its address.
+
+        :param str address: The address of the device.
+        :return: The GoveeDevice object if found, otherwise None.
+        :rtype: GoveeDevice | None
+        """
         for device in self._devices:
             if device.device == address:
                 return device
